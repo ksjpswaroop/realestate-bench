@@ -1,0 +1,96 @@
+{
+  "description": "Structured extraction for a single unit's row in a property rent roll.\n\nIntended document type: a row of a rent roll spreadsheet or a single\nunit summary; the document should mention unit, tenant, sqft, and rent.\nFor multi-row rent rolls, run this schema once per row (split the doc first).",
+  "properties": {
+    "property_name": {
+      "title": "Property Name",
+      "type": "string"
+    },
+    "unit_number": {
+      "title": "Unit Number",
+      "type": "string"
+    },
+    "tenant_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tenant Name"
+    },
+    "square_feet": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Square Feet"
+    },
+    "monthly_rent": {
+      "title": "Monthly Rent",
+      "type": "number"
+    },
+    "rent_per_sqft": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rent Per Sqft"
+    },
+    "lease_start": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lease Start"
+    },
+    "lease_end": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lease End"
+    },
+    "status": {
+      "default": "occupied",
+      "enum": [
+        "occupied",
+        "vacant",
+        "notice-to-vacate",
+        "model-unit",
+        "down"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "property_name",
+    "unit_number",
+    "monthly_rent"
+  ],
+  "title": "RentRoll",
+  "type": "object"
+}

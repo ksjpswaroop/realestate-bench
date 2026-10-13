@@ -91,3 +91,15 @@ models/
 *.safetensors
 *.gguf
 *.bin
+
+
+# ---------------------------------------------------------------------------
+# Desktop app (Tauri 2 + React)
+# ---------------------------------------------------------------------------
+desktop/node_modules/
+desktop/dist/
+desktop/src-tauri/target/
+desktop/src-tauri/bin/
+desktop/.npmrc
+desktop/sidecar/.venv/
+desktop/sidecar/__pycache__/

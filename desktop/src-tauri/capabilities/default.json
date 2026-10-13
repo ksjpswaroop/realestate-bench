@@ -1,0 +1,30 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Least-privilege capabilities for RealEstate-Bench (per FR-011: no malicious PDF can exploit the webview).",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:default",
+    "core:path:default",
+    "core:webview:default",
+    "core:app:default",
+    "dialog:default",
+    "dialog:allow-save",
+    "dialog:allow-open",
+    "fs:default",
+    "fs:allow-app-write-recursive",
+    "fs:allow-app-read-recursive",
+    "shell:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "bin/realestate-extract",
+          "sidecar": true,
+          "args": []
+        }
+      ]
+    }
+  ]
+}

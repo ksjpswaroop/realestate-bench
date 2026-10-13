@@ -1,0 +1,93 @@
+{
+  "description": "Structured extraction for a vendor invoice / bill / receipt.\n\nIntended document type: 1-3 page invoice from a vendor, contractor, or\nutility. Captures vendor, line items, totals, payment terms.",
+  "properties": {
+    "vendor_name": {
+      "title": "Vendor Name",
+      "type": "string"
+    },
+    "vendor_address": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Vendor Address"
+    },
+    "invoice_number": {
+      "title": "Invoice Number",
+      "type": "string"
+    },
+    "invoice_date": {
+      "title": "Invoice Date",
+      "type": "string"
+    },
+    "due_date": {
+      "title": "Due Date",
+      "type": "string"
+    },
+    "currency": {
+      "enum": [
+        "USD",
+        "CAD",
+        "EUR",
+        "GBP",
+        "MXN",
+        "AUD",
+        "INR",
+        "JPY",
+        "CHF",
+        "SGD"
+      ],
+      "title": "Currency",
+      "type": "string"
+    },
+    "subtotal": {
+      "title": "Subtotal",
+      "type": "number"
+    },
+    "tax": {
+      "title": "Tax",
+      "type": "number"
+    },
+    "total": {
+      "title": "Total",
+      "type": "number"
+    },
+    "payment_terms": {
+      "default": "net-30",
+      "enum": [
+        "due-on-receipt",
+        "net-15",
+        "net-30",
+        "net-45",
+        "net-60",
+        "cod",
+        "prepaid",
+        "other"
+      ],
+      "title": "Payment Terms",
+      "type": "string"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "vendor_name",
+    "invoice_number",
+    "invoice_date",
+    "due_date",
+    "currency",
+    "subtotal",
+    "tax",
+    "total"
+  ],
+  "title": "Invoice",
+  "type": "object"
+}

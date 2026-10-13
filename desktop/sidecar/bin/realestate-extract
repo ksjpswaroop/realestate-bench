@@ -1,0 +1,41 @@
+#!/Users/swaroop/projects/realestate-bench/desktop/sidecar/.venv/bin/python3
+# -*- mode: python -*-
+"""realestate-extract — Tauri sidecar entry point.
+
+Reads JSON on stdin:  {"doc_path": str, "schema_id": str}
+Writes JSON to stdout: {"extraction": {...}, "confidences": {...},
+                         "latency_ms": int, "model_version": str, ...,
+                         "error": null | {"code": str, "message": str}}
+
+This script is the binary Tauri spawns as a sidecar. It must be executable
+(chmod +x).
+"""
+import os
+import sys
+from pathlib import Path
+
+# Critical: clear PYTHONPATH so the venv's site-packages wins over the
+# caller's env (which may have been set by IDE / orchestrator / CI).
+os.environ.pop("PYTHONPATH", None)
+
+# Make the `realestate_extract` package importable regardless of cwd or where
+# the binary lives. The script may be at:
+#   * desktop/sidecar/bin/realestate-extract                    (source)
+#   * desktop/src-tauri/bin/realestate-extract-<triple>         (Tauri-side)
+# The package should be at desktop/sidecar/realestate_extract/
+_HERE = Path(__file__).resolve().parent
+_candidates = [
+    _HERE / "../realestate_extract",                      # sidecar/bin/ case
+    _HERE / "../../sidecar/realestate_extract",            # src-tauri/bin/ case
+    _HERE / "../../../sidecar/realestate_extract",        # deeper nesting
+]
+for c in _candidates:
+    c = c.resolve()
+    if c.is_dir() and (c / "__init__.py").is_file():
+        sys.path.insert(0, str(c.parent))
+        break
+
+from realestate_extract.cli import main  # noqa: E402
+
+if __name__ == "__main__":
+    sys.exit(main())

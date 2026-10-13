@@ -1,0 +1,98 @@
+{
+  "description": "Structured extraction for a residential or commercial lease addendum.\n\nIntended document type: 1-10 page PDF/photo of a signed lease addendum,\nrenewal, or amendment. Works on born-digital and OCR'd scans.",
+  "properties": {
+    "landlord": {
+      "title": "Landlord",
+      "type": "string"
+    },
+    "tenant": {
+      "title": "Tenant",
+      "type": "string"
+    },
+    "property_address": {
+      "title": "Property Address",
+      "type": "string"
+    },
+    "monthly_rent": {
+      "title": "Monthly Rent",
+      "type": "number"
+    },
+    "currency": {
+      "enum": [
+        "USD",
+        "CAD",
+        "EUR",
+        "GBP",
+        "MXN",
+        "AUD",
+        "INR",
+        "JPY",
+        "CHF",
+        "SGD"
+      ],
+      "title": "Currency",
+      "type": "string"
+    },
+    "start_date": {
+      "title": "Start Date",
+      "type": "string"
+    },
+    "end_date": {
+      "title": "End Date",
+      "type": "string"
+    },
+    "security_deposit": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Security Deposit"
+    },
+    "renewal_option": {
+      "default": "none",
+      "enum": [
+        "none",
+        "month-to-month",
+        "1-year",
+        "2-year",
+        "3-year",
+        "5-year",
+        "other"
+      ],
+      "title": "Renewal Option",
+      "type": "string"
+    },
+    "pets_allowed": {
+      "default": "no",
+      "enum": [
+        "yes",
+        "no",
+        "with-deposit",
+        "case-by-case"
+      ],
+      "title": "Pets Allowed",
+      "type": "string"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "landlord",
+    "tenant",
+    "property_address",
+    "monthly_rent",
+    "currency",
+    "start_date",
+    "end_date"
+  ],
+  "title": "LeaseAddendum",
+  "type": "object"
+}

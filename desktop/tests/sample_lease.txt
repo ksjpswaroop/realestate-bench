@@ -1,0 +1,13 @@
+LEASE ADDENDUM
+
+Landlord name: Skyline Property Holdings LLC
+Tenant name: Maria Gonzalez
+Property address: 1247 Ashbury Street, Apartment 3B, San Francisco, CA 94117
+Monthly rent: 3150
+Currency: USD
+Start date: 2026-11-01
+End date: 2028-10-31
+Security deposit: 5600
+Renewal option: 1-year
+Pets allowed: with-deposit
+Notes: 12-month renewal at then-current market rate.

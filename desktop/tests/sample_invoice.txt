@@ -1,0 +1,15 @@
+INVOICE INV-2026-0915
+Date: 2026-09-15
+Due: 2026-10-15
+
+From: Acme Property Services, 500 Market Street, San Francisco, CA 94105
+To: RealEstate365 Holdings LLC
+
+Description: Quarterly property management services, Q3 2026
+Subtotal: 10000.00
+Tax 8.5%: 850.00
+Total: 10850.00
+
+Payment terms: Net 30
+
+Please remit to: Acme Property Services, Account 1234567890.

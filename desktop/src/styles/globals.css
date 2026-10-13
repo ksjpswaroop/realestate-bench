@@ -1,0 +1,85 @@
+/* RealEstate-Bench design tokens.
+   Mirrors ARCHITECTURE §5 and the DESIGN_SYSTEM.md spec. */
+:root {
+  --color-bg:           #fafaf8;
+  --color-bg-elevated:  #ffffff;
+  --color-bg-sunken:    #f0f0ed;
+  --color-border:       #d4d4d1;
+  --color-fg:           #1a1a1a;
+  --color-fg-muted:     #6b6b6b;
+  --color-accent:       #0d6b5e;
+  --color-accent-fg:    #ffffff;
+  --color-success:      #1f7a3a;
+  --color-warning:      #b06a00;
+  --color-danger:       #b3261e;
+  --color-info:         #1e6fb3;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-2: 0 4px 8px rgba(0, 0, 0, 0.08);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg:          #1a1a1a;
+    --color-bg-elevated: #242424;
+    --color-bg-sunken:   #0f0f0f;
+    --color-border:      #2e2e2e;
+    --color-fg:          #f0f0ed;
+    --color-fg-muted:    #9a9a9a;
+    --color-accent:      #2db5a0;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  background: var(--color-bg-elevated);
+  color: var(--color-fg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  transition: background 120ms;
+}
+button:hover { background: var(--color-bg-sunken); }
+button.primary {
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  border-color: var(--color-accent);
+}
+button.primary:hover { filter: brightness(1.1); }
+button.danger {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+input, select, textarea {
+  font: inherit;
+  background: var(--color-bg-elevated);
+  color: var(--color-fg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  width: 100%;
+}
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+}
