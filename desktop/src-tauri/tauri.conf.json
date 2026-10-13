@@ -41,7 +41,8 @@
       "../sidecar/realestate_extract/cli.py",
       "../schemas/lease_addendum.json",
       "../schemas/invoice.json",
-      "../schemas/rent_roll.json"
+      "../schemas/rent_roll.json",
+      "../schemas/medical_soap_note.json"
     ],
     "externalBin": [
       "bin/realestate-extract"

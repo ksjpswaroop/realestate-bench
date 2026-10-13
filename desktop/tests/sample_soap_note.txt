@@ -1,0 +1,39 @@
+ENCOUNTER NOTE - 2026-10-12
+Patient: P-104732
+Provider: Dr. Anya Sharma, MD (Internal Medicine)
+
+CHIEF COMPLAINT
+Patient presents with a 4-day history of productive cough and low-grade fever.
+
+HISTORY OF PRESENT ILLNESS
+Patient is a 58-year-old male who reports a cough productive of yellow
+sputum since 2026-10-08, associated with subjective fevers (Tmax 38.3 C),
+fatigue, and mild dyspnea on exertion. No chest pain, no hemoptysis.
+Denies recent travel. Up to date on influenza vaccine.
+
+PAST MEDICAL HISTORY
+Hypertension, hyperlipidemia, type 2 diabetes mellitus (well controlled).
+
+MEDICATIONS
+Lisinopril 20 mg daily; Atorvastatin 40 mg nightly; Metformin 1000 mg BID.
+
+ALLERGIES
+NKDA (no known drug allergies).
+
+VITAL SIGNS
+T 38.1 C, HR 96, BP 142/88, RR 20, SpO2 95 percent on room air.
+
+PHYSICAL EXAM
+General: alert, no acute distress. Lungs: rhonchi in right lower lobe,
+no wheezes, no rales. Cardiovascular: regular rate and rhythm, no murmurs.
+Abdomen: soft, non-tender.
+
+ASSESSMENT
+1. Community-acquired pneumonia, right lower lobe, outpatient-eligible.
+2. Hypertension, at goal, continue current regimen.
+
+PLAN
+- Prescribe amoxicillin 875 mg PO BID x 5 days.
+- Chest X-ray, PA and lateral.
+- Recheck in 48 to 72 hours if not improving.
+- Return to clinic in 2 weeks for reassessment.

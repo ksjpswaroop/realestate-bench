@@ -46,6 +46,14 @@ const SCHEMAS: &[(&str, &str, &str, &[&str])] = &[
         "Structured extraction for a single unit's row in a property rent roll.",
         &["property_name", "unit_number", "tenant_name", "square_feet", "monthly_rent", "rent_per_sqft", "lease_start", "lease_end", "status"],
     ),
+    (
+        "medical_soap_note",
+        "MedicalSoapNote",
+        "Structured extraction for a clinical SOAP note (Subjective/Objective/Assessment/Plan).",
+        &["patient_id", "encounter_date", "chief_complaint", "hpi", "past_medical_history",
+          "medications", "allergies", "vital_signs", "physical_exam", "assessment", "plan",
+          "follow_up", "provider_name"],
+    ),
 ];
 
 // ---------------------------------------------------------------------------

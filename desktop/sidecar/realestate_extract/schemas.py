@@ -76,12 +76,42 @@ class RentRoll(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Medical SOAP Note — first non-real-estate industry pack (proves §3 of
+# docs/extending-to-other-industries.md works on this codebase).
+# Tested with a fictional, de-identified encounter note (no PHI).
+# ---------------------------------------------------------------------------
+class MedicalSoapNote(BaseModel):
+    """Structured extraction for a clinical SOAP note.
+
+    Intended document type: 1-2 page encounter summary from a primary-care
+    or specialty visit. The engine does not persist PHI itself; the user
+    controls where the JSON goes. See docs/extending-to-other-industries.md §4.2
+    for the production-redaction recipe.
+    """
+
+    patient_id:            Annotated[str, needle.Field(pattern=r"^P-[0-9]{6}$", description="De-identified patient ID, format P-NNNNNN")]
+    encounter_date:        Annotated[str, needle.Field(pattern=r"^\d{4}-\d{2}-\d{2}$", description="Date of encounter in YYYY-MM-DD")]
+    chief_complaint:       Annotated[str, needle.Field(description="Primary reason for the visit, in patient's own words or provider's summary")]
+    hpi:                   Annotated[str, needle.Field(description="History of present illness: symptom onset, duration, severity, alleviating/aggravating factors")]
+    past_medical_history:  Annotated[str, needle.Field(description="Relevant past medical history, comma-separated conditions; empty if none")]
+    medications:           Annotated[str, needle.Field(description="Current medications as free text, semicolon-separated; empty if none")]
+    allergies:             Annotated[str, needle.Field(description="Known drug allergies, semicolon-separated; 'NKDA' if none")]
+    vital_signs:           Annotated[Optional[str], needle.Field(description="Vitals if recorded (BP, HR, T, RR, SpO2); null if absent")] = None
+    physical_exam:         Annotated[str, needle.Field(description="Physical exam findings by system; empty if not documented")]
+    assessment:            Annotated[list[str], needle.Field(description="Provider's diagnostic assessment, one ICD-10-style description per list item, empty list if not stated")]
+    plan:                  Annotated[list[str], needle.Field(description="Treatment plan items: medications prescribed, tests ordered, follow-up timing")]
+    follow_up:             Annotated[Optional[str], needle.Field(description="Follow-up instructions, e.g. 'return in 2 weeks'; null if none")] = None
+    provider_name:         Annotated[str, needle.Field(description="Name of the documenting provider")]
+
+
+# ---------------------------------------------------------------------------
 # Registry — used by both the sidecar and the Tauri app
 # ---------------------------------------------------------------------------
 SCHEMA_REGISTRY: dict[str, type[BaseModel]] = {
-    "lease_addendum": LeaseAddendum,
-    "invoice":        Invoice,
-    "rent_roll":      RentRoll,
+    "lease_addendum":   LeaseAddendum,
+    "invoice":          Invoice,
+    "rent_roll":        RentRoll,
+    "medical_soap_note": MedicalSoapNote,
 }
 
 

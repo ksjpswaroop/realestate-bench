@@ -30,3 +30,4 @@ run() {
 
 run "Invoice extraction"  "$HERE/tests/sample_invoice.txt" invoice
 run "Lease extraction"    "$HERE/tests/sample_lease.txt"   lease_addendum
+run "SOAP-note extraction" "$HERE/tests/sample_soap_note.txt" medical_soap_note

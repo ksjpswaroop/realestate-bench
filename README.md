@@ -20,6 +20,7 @@ A CLI + Python library (and eventually a hosted API) that turns leases, rent rol
 - [`ROADMAP.md`](./ROADMAP.md) — Phase-by-phase timeline (commercial)
 - [`datasets/README.md`](./datasets/README.md) — Benchmark dataset manifest
 - [`docs/adr/`](./docs/adr/) — Architecture Decision Records
+- [`docs/extending-to-other-industries.md`](./docs/extending-to-other-industries.md) — How to add new industry schema packs (legal, healthcare, finance, logistics, HR) — the §3 walkthrough adds the **Medical SOAP Note** schema to this repo as a worked example
 - [`docs/DESIGN_SYSTEM.md`](./docs/DESIGN_SYSTEM.md) — CLI + (future) Web UI design tokens
 - [`docs/WIREFRAMES.md`](./docs/WIREFRAMES.md) — CLI screens + future UI mockups
 - [`docs/PROMPT_TEMPLATES.md`](./docs/PROMPT_TEMPLATES.md) — 20 iterative-regeneration prompts
