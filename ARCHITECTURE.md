@@ -254,6 +254,24 @@ CREATE VIRTUAL TABLE extractions_fts USING fts5(
 - **Tauri capabilities** grant only the permissions we need: `core:default`, `core:window:default`, `dialog:default`, `dialog:allow-save`, `dialog:allow-open`.
 - **Wireshark-verified** during Phase 1.5 acceptance: run the app, do a full extraction + export, confirm no packets leave the machine (other than OS-level mDNS, which we filter).
 
+### 3.7 Why no LLM-agent orchestrator (no Hermes, no LangChain, no smolagents)
+
+The orchestration chain (React → Tauri command → sidecar → model → SQLite) is **deterministic and Rust-native**. We deliberately do **not** embed an LLM-agent framework (Hermes Agent, LangChain, smolagents, Open Interpreter, etc.) between the UI and the sidecar. Reasons:
+
+- **No reasoning loop to drive.** The 45M cactus-needle model is an extraction model — it maps `(document, JSON schema) → JSON` in one forward pass. There is no ReAct loop, no tool-calling, no multi-step plan. A user dragging a PDF onto the window should always get an extraction, not a probabilistic "should I run it?" decision.
+- **Latency budget.** End-to-end extraction is ~600 ms today (Rust IPC + tokio + sidecar warm start + cactus-needle). Adding an LLM hop adds ≥1 network round-trip and ≥200 ms of prompt-build overhead — pushing the path past the 5-second FR-001 budget on a cold cache and past the 1-second warm-cache target.
+- **Network constraint (FR-011).** The desktop app must not call the network at runtime. Any LLM-agent framework that depends on a provider API violates this. A locally-served model (Ollama, llama.cpp) would work in theory but adds a process the user must install, configure, and keep running — defeating the "double-click the .app and it just works" goal.
+- **Bundle size and config burden.** Embedding an agent framework would push the 6.1 MiB `.app` past 200 MiB and require every user to set up provider credentials before extracting their first document.
+- **Determinism.** The current pipeline is byte-stable on the same input + schema, which is what makes the golden-set regression (`bench/golden/v1/`) meaningful. Inserting a sampling LLM into the chain makes results non-reproducible.
+
+The full decision (with alternatives considered) is in
+[`docs/adr/0001-no-hermes-in-desktop-runtime.md`](docs/adr/0001-no-hermes-in-desktop-runtime.md).
+The short version: **Hermes is the AI tool we use to *build* the app, not a
+component the app ships with.** If we ever add a "run the extraction across
+this whole folder" or "watch this directory" feature, that lives in a
+separate `realestate-bench-agent` Python CLI, driven by Hermes on a
+developer machine — not bundled into the desktop `.app`.
+
 ## 4. Data Flow
 
 ### Flow A: Single-doc extraction (`extract` command)

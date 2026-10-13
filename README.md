@@ -16,9 +16,10 @@ A CLI + Python library (and eventually a hosted API) that turns leases, rent rol
 
 - [`PRD.md`](./PRD.md) — Full 39-section Product Requirements Document
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — System architecture, components, data flow
-- [`BACKLOG.md`](./BACKLOG.md) — Sprint backlog with stable story IDs (US-001..US-530)
+- [`BACKLOG.md`](./BACKLOG.md) — Sprint backlog with stable story IDs (US-001..US-640)
 - [`ROADMAP.md`](./ROADMAP.md) — Phase-by-phase timeline (commercial)
 - [`datasets/README.md`](./datasets/README.md) — Benchmark dataset manifest
+- [`docs/adr/`](./docs/adr/) — Architecture Decision Records
 - [`docs/DESIGN_SYSTEM.md`](./docs/DESIGN_SYSTEM.md) — CLI + (future) Web UI design tokens
 - [`docs/WIREFRAMES.md`](./docs/WIREFRAMES.md) — CLI screens + future UI mockups
 - [`docs/PROMPT_TEMPLATES.md`](./docs/PROMPT_TEMPLATES.md) — 20 iterative-regeneration prompts
@@ -70,6 +71,16 @@ or text editor. Edited values win over model values in Excel/CSV exports.
 
 Tests passing: 6/6 pytest (sidecar) + 2/2 cargo integration (sidecar
 smoke + DB flow) + `tsc --noEmit` clean + `vite build` clean.
+
+> **Why no LLM-agent orchestrator (no Hermes, no LangChain) inside the
+> .app?** The desktop app's orchestration is deterministic Rust
+> (`commands.rs` → sidecar → SQLite). Adding an LLM-agent framework
+> would break FR-001 (latency), FR-011 (no network at runtime), and
+> the "double-click and it works" UX. The decision is documented in
+> [`docs/adr/0001-no-hermes-in-desktop-runtime.md`](./docs/adr/0001-no-hermes-in-desktop-runtime.md)
+> and the rationale is summarized in `ARCHITECTURE.md` §3.7. Hermes
+> Agent is the AI tool we use to *build* the app, not a component the
+> app ships with.
 
 ## Phase 0 Gate
 
