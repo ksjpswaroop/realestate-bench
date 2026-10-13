@@ -12,6 +12,7 @@ pub mod db;
 mod errors;
 mod extract;
 mod paths;
+mod user_schemas;
 
 pub use errors::{AppError, AppResult};
 
@@ -47,6 +48,17 @@ pub fn run() {
             commands::wipe_db,
             commands::db_info,
             commands::search_extractions,
+            // Phase 2: user-defined schemas + tags
+            commands::list_user_schemas,
+            commands::get_user_schema,
+            commands::create_user_schema,
+            commands::update_user_schema,
+            commands::delete_user_schema,
+            commands::add_extraction_tag,
+            commands::remove_extraction_tag,
+            commands::get_extraction_tags,
+            commands::list_all_tags,
+            commands::filter_extractions_by_tag,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

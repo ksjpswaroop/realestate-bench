@@ -13,6 +13,7 @@ use crate::db;
 use crate::errors::{AppError, AppResult};
 use crate::extract;
 use crate::paths;
+use crate::user_schemas;
 
 // ---------------------------------------------------------------------------
 // Schema metadata (compiled-in)
@@ -118,14 +119,28 @@ pub async fn extract_document(app: AppHandle, args: ExtractArgs) -> AppResult<Ex
     })?;
 
     // 3. Run sidecar
-    let response = extract::run(
-        &app,
-        extract::SidecarRequest {
-            doc_path: args.doc_path.clone(),
-            schema_id: args.schema_id.clone(),
-        },
-    )
-    .await?;
+    //    If the schema_id is a built-in, the sidecar handles it directly.
+    //    If it's a user-defined schema, look it up in the DB and pass the
+    //    JSON definition to the sidecar so it can build a dynamic Pydantic
+    //    class.
+    let mut sidecar_req = extract::SidecarRequest {
+        doc_path: args.doc_path.clone(),
+        schema_id: args.schema_id.clone(),
+        user_schema_json: None,
+        user_schema_name: None,
+    };
+    if !is_built_in_schema(&args.schema_id) {
+        match user_schemas::get_user_schema(&args.schema_id)? {
+            Some(u) => {
+                sidecar_req.user_schema_json = Some(u.fields_json.clone());
+                sidecar_req.user_schema_name = Some(u.name.clone());
+            }
+            None => {
+                return Err(AppError::NotFound(format!("schema {}", args.schema_id)));
+            }
+        }
+    }
+    let response = extract::run(&app, sidecar_req).await?;
 
     // 4. Persist (even on error — we want to remember the attempt)
     let extraction_id = if let Some(ref ext) = response.extraction {
@@ -172,8 +187,8 @@ fn count_pdf_pages(path: &std::path::Path) -> AppResult<u32> {
 }
 
 #[tauri::command]
-pub fn list_schemas() -> Vec<SchemaInfo> {
-    SCHEMAS
+pub fn list_schemas() -> AppResult<Vec<SchemaInfo>> {
+    let mut out: Vec<SchemaInfo> = SCHEMAS
         .iter()
         .map(|(id, name, doc, fields)| SchemaInfo {
             id: id.to_string(),
@@ -182,16 +197,37 @@ pub fn list_schemas() -> Vec<SchemaInfo> {
             fields: fields.iter().map(|f| f.to_string()).collect(),
             version: "1.0.0".to_string(),
         })
-        .collect()
+        .collect();
+
+    // Append user-defined schemas (Phase 2). They are loaded fresh from the
+    // DB on every call so the React UI reflects edits immediately.
+    for u in crate::user_schemas::list_user_schemas(false)? {
+        let fields: Vec<user_schemas::UserFieldDef> =
+            serde_json::from_str(&u.fields_json).unwrap_or_default();
+        out.push(SchemaInfo {
+            id: u.id,
+            name: u.name,
+            doc: u.description,
+            fields: fields.into_iter().map(|f| f.name).collect(),
+            version: "user".to_string(),
+        });
+    }
+
+    Ok(out)
 }
 
 #[tauri::command]
 pub fn get_schema_fields(schema_id: String) -> AppResult<Vec<String>> {
-    SCHEMAS
-        .iter()
-        .find(|(id, _, _, _)| *id == schema_id)
-        .map(|(_, _, _, fields)| fields.iter().map(|f| f.to_string()).collect())
-        .ok_or_else(|| AppError::NotFound(format!("schema {schema_id}")))
+    if let Some((_, _, _, fields)) = SCHEMAS.iter().find(|(id, _, _, _)| *id == schema_id) {
+        return Ok(fields.iter().map(|f| f.to_string()).collect());
+    }
+    // User schema?
+    if let Some(u) = user_schemas::get_user_schema(&schema_id)? {
+        let fields: Vec<user_schemas::UserFieldDef> =
+            serde_json::from_str(&u.fields_json).unwrap_or_default();
+        return Ok(fields.into_iter().map(|f| f.name).collect());
+    }
+    Err(AppError::NotFound(format!("schema {schema_id}")))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -557,4 +593,101 @@ fn csv_escape(s: &str) -> String {
     } else {
         s.to_string()
     }
+}
+
+// ---------------------------------------------------------------------------
+// User-defined schema + tag commands (Phase 2)
+// ---------------------------------------------------------------------------
+
+fn is_built_in_schema(id: &str) -> bool {
+    SCHEMAS.iter().any(|(bid, _, _, _)| *bid == id)
+}
+
+#[tauri::command]
+pub fn list_user_schemas(include_archived: Option<bool>) -> AppResult<Vec<user_schemas::UserSchemaRow>> {
+    user_schemas::list_user_schemas(include_archived.unwrap_or(false))
+}
+
+#[tauri::command]
+pub fn get_user_schema(id: String) -> AppResult<Option<user_schemas::UserSchemaRow>> {
+    user_schemas::get_user_schema(&id)
+}
+
+#[tauri::command]
+pub fn create_user_schema(
+    name: String,
+    description: String,
+    fields: Vec<user_schemas::UserFieldDef>,
+) -> AppResult<user_schemas::UserSchemaRow> {
+    user_schemas::create_user_schema(user_schemas::NewUserSchema {
+        name,
+        description,
+        fields,
+    })
+}
+
+#[tauri::command]
+pub fn update_user_schema(
+    id: String,
+    name: Option<String>,
+    description: Option<String>,
+    fields: Option<Vec<user_schemas::UserFieldDef>>,
+) -> AppResult<user_schemas::UserSchemaRow> {
+    user_schemas::update_user_schema(
+        &id,
+        user_schemas::UpdateUserSchema {
+            name,
+            description,
+            fields,
+            ..Default::default()
+        },
+    )
+}
+
+#[tauri::command]
+pub fn delete_user_schema(id: String) -> AppResult<()> {
+    user_schemas::delete_user_schema(&id)
+}
+
+#[tauri::command]
+pub fn add_extraction_tag(extraction_id: i64, tag: String) -> AppResult<Vec<String>> {
+    user_schemas::add_tag(extraction_id, &tag)
+}
+
+#[tauri::command]
+pub fn remove_extraction_tag(extraction_id: i64, tag: String) -> AppResult<Vec<String>> {
+    user_schemas::remove_tag(extraction_id, &tag)
+}
+
+#[tauri::command]
+pub fn get_extraction_tags(extraction_id: i64) -> AppResult<Vec<String>> {
+    user_schemas::get_tags(extraction_id)
+}
+
+#[tauri::command]
+pub fn list_all_tags() -> AppResult<Vec<user_schemas::TagCount>> {
+    user_schemas::list_all_tags()
+}
+
+#[tauri::command]
+pub fn filter_extractions_by_tag(tag: String) -> AppResult<Vec<i64>> {
+    let tag = tag.trim().to_lowercase();
+    db::with_conn(|c| {
+        let mut stmt = c.prepare(
+            "SELECT id FROM extractions
+             WHERE deleted_at IS NULL
+               AND EXISTS (
+                   SELECT 1 FROM json_each(tags_json) j
+                   WHERE j.value = ?1
+               )
+             ORDER BY created_at DESC
+             LIMIT 1000",
+        )?;
+        let rows = stmt.query_map([tag], |r| r.get::<_, i64>(0))?;
+        let mut out = vec![];
+        for r in rows {
+            out.push(r?);
+        }
+        Ok(out)
+    })
 }

@@ -21,7 +21,7 @@ os.environ.setdefault("NEEDLE_TELEMETRY", "0")
 os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
 os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
 
-from .schemas import SCHEMA_REGISTRY, get_schema  # noqa: E402
+from .schemas import SCHEMA_REGISTRY, build_schema_from_user_def, get_schema  # noqa: E402
 
 MODEL_VERSION = "cactus-needle-3.2.1"
 
@@ -121,15 +121,22 @@ def _assert_no_network_call_during_extraction() -> None:
 # ---------------------------------------------------------------------------
 # Cactus-needle extraction
 # ---------------------------------------------------------------------------
-def run_extraction(text: str, schema_id: str, strict: bool = False) -> dict | None:
-    """Run the model; return the typed object as a plain dict, or None if the
-    model didn't emit a function call (cactus-needle returns None in that case).
-    Other failures raise.
+def run_extraction(
+    text: str,
+    schema_id: str,
+    user_schema_json: str | None = None,
+    strict: bool = False,
+) -> tuple[dict | None, str]:
+    """Run the model; return (extraction, schema_version).
 
-    ``strict=False`` (default for the sidecar) skips cactus-needle's grounding
-    validator, which can be over-strict on numbers that the model rounded
-    (e.g. "10000.00" vs "10000"). Users can re-enable strict mode for
-    higher-precision workflows via an env var.
+    ``schema_version`` is "1.0.0" for built-in schemas, or "user" for
+    user-defined schemas. Cactus-needle 3.2.1 doesn't yet expose per-field
+    scores publicly, so confidence estimation lives in
+    ``estimate_confidences``.
+
+    When ``user_schema_json`` is given, we build a dynamic Pydantic class
+    from the user's field definitions and call the model with that
+    instead of a built-in schema.
     """
     import os as _os
     import needle
@@ -137,26 +144,40 @@ def run_extraction(text: str, schema_id: str, strict: bool = False) -> dict | No
     if strict is False and "REALESTATE_STRICT" in _os.environ:
         strict = _os.environ["REALESTATE_STRICT"].lower() in ("1", "true", "yes")
 
-    schema_cls = get_schema(schema_id)
+    if user_schema_json:
+        try:
+            fields = json.loads(user_schema_json)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"user_schema_json is not valid JSON: {e}") from e
+        if not isinstance(fields, list):
+            raise ValueError("user_schema_json must be a JSON array of field definitions")
+        schema_cls = build_schema_from_user_def(fields)
+        schema_version = "user"
+    else:
+        schema_cls = get_schema(schema_id)
+        schema_version = "1.0.0"
+
     result = needle.extract(text, schema_cls, strict=strict)
     if result is None:
-        return None
-    return result.model_dump(mode="json")
+        return None, schema_version
+    return result.model_dump(mode="json"), schema_version
 
 
 # ---------------------------------------------------------------------------
 # Confidence estimation
 # ---------------------------------------------------------------------------
-def estimate_confidences(extraction: dict, schema_id: str) -> dict[str, float]:
+def estimate_confidences(
+    extraction: dict,
+    schema_cls: type | None = None,
+) -> dict[str, float]:
     """Per-field confidence estimate.
 
     cactus-needle 3.2.1 doesn't yet expose per-field scores publicly, so we
-    compute a coarse heuristic: each field's confidence is the mean of
-    (a) whether the field passes the schema's type/pattern/enum constraints
-    and (b) a flat 0.85 baseline minus penalties for empty / null / pattern
-    misses. The mean is reported as 'mean_confidence' in the response.
+    compute a coarse heuristic: each field's confidence is a flat 0.85
+    baseline (the grammar-constrained decoder accepted the value) minus
+    penalties for empty / null / pattern misses. The mean is reported as
+    'mean_confidence' in the response.
     """
-    schema_cls = get_schema(schema_id)
     confs: dict[str, float] = {}
     for name, value in extraction.items():
         score = 0.85  # baseline: the grammar-constrained decoder accepted the value
@@ -180,12 +201,19 @@ def main() -> int:
         req = read_stdin_request()
         doc_path = req.get("doc_path")
         schema_id = req.get("schema_id")
+        user_schema_json = req.get("user_schema_json")
         if not doc_path:
             return _emit_error("missing 'doc_path' in request", started)
         if not schema_id:
             return _emit_error("missing 'schema_id' in request", started)
-        if schema_id not in SCHEMA_REGISTRY:
-            return _emit_error(f"unknown schema_id {schema_id!r}; known: {list(SCHEMA_REGISTRY)}", started)
+        # Either it's a built-in schema (in SCHEMA_REGISTRY) or a user
+        # schema (user_schema_json provided). The Rust side ensures the
+        # schema_id matches the JSON before sending.
+        if not user_schema_json and schema_id not in SCHEMA_REGISTRY:
+            return _emit_error(
+                f"unknown schema_id {schema_id!r}; known: {list(SCHEMA_REGISTRY)}",
+                started,
+            )
 
         try:
             text, doc_meta = extract_text_from_doc(doc_path)
@@ -202,7 +230,11 @@ def main() -> int:
             return _emit_error("no text could be extracted from the document (try OCR or a different file)", started, code="EMPTY_DOC")
 
         try:
-            extraction = run_extraction(text, schema_id, strict=False)
+            extraction, schema_version = run_extraction(
+                text, schema_id, user_schema_json=user_schema_json, strict=False,
+            )
+        except ValueError as e:
+            return _emit_error(f"schema build failed: {e}", started, code="SCHEMA_ERROR")
         except Exception as e:
             return _emit_error(f"model extraction failed: {type(e).__name__}: {e}", started, code="MODEL_ERROR")
         if extraction is None:
@@ -215,7 +247,7 @@ def main() -> int:
                 code="NO_RESULT",
             )
 
-        confidences = estimate_confidences(extraction, schema_id)
+        confidences = estimate_confidences(extraction)
         mean_conf = sum(confidences.values()) / max(1, len(confidences))
         latency_ms = int((time.perf_counter() - started) * 1000)
 
@@ -226,7 +258,7 @@ def main() -> int:
             "latency_ms":      latency_ms,
             "model_version":   MODEL_VERSION,
             "schema_id":       schema_id,
-            "schema_version":  "1.0.0",
+            "schema_version":  schema_version,
             "doc_meta":        doc_meta,
             "error":           None,
         }

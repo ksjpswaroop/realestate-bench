@@ -40,6 +40,12 @@ export default function App() {
           🗂️ Extractions
         </NavLink>
         <NavLink
+          to="/schemas"
+          style={({ isActive }) => navStyle(isActive)}
+        >
+          🧩 Schemas
+        </NavLink>
+        <NavLink
           to="/settings"
           style={({ isActive }) => navStyle(isActive)}
         >
@@ -52,7 +58,7 @@ export default function App() {
         <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0 0", fontSize: 12 }}>
           {schemas.map((s) => (
             <li key={s.id} style={{ padding: "2px 0", color: "var(--color-fg-muted)" }}>
-              {s.id}
+              {s.id} {s.version === "user" && <span title="user-defined">(you)</span>}
             </li>
           ))}
         </ul>

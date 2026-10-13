@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ExtractResult } from "../lib/ipc";
+import TagPicker from "./TagPicker";
 
 type Props = {
   result: ExtractResult;
@@ -69,6 +70,20 @@ export default function ExtractionView({
       >
         <span>model <code>{result.model_version}</code> · schema <code>{result.schema_id}</code> v{result.schema_version} · {result.latency_ms}ms</span>
       </div>
+
+      {result.extraction_id > 0 && (
+        <div
+          style={{
+            background: "var(--color-bg-elevated)",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-md)",
+            padding: 16,
+            marginBottom: 16,
+          }}
+        >
+          <TagPicker extractionId={result.extraction_id} initialTags={[]} />
+        </div>
+      )}
 
       <div
         style={{

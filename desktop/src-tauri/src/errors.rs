@@ -29,6 +29,9 @@ pub enum AppError {
     #[error("invalid request: {0}")]
     InvalidRequest(String),
 
+    #[error("validation error: {0}")]
+    Validation(String),
+
     #[error("internal error: {0}")]
     Internal(String),
 
@@ -56,6 +59,7 @@ impl AppError {
             AppError::Sidecar(_) => "sidecar",
             AppError::NotFound(_) => "not_found",
             AppError::InvalidRequest(_) => "invalid_request",
+            AppError::Validation(_) => "validation",
             AppError::Internal(_) => "internal",
             AppError::Zip(_) => "zip",
         }

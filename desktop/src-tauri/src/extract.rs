@@ -14,6 +14,17 @@ use crate::errors::{AppError, AppResult};
 pub struct SidecarRequest {
     pub doc_path: String,
     pub schema_id: String,
+    /// Optional: when `schema_id` refers to a user-defined schema, the Rust
+    /// side looks up the schema definition in SQLite and passes the JSON
+    /// here. The sidecar uses it to build a dynamic Pydantic class and
+    /// extract against it. The sidecar echoes the schema_id back so the
+    /// caller can correlate.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_schema_json: Option<String>,
+    /// Optional: human-readable name of the user schema. Stored alongside
+    /// the extraction for display.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_schema_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

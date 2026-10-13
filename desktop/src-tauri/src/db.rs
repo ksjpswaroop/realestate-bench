@@ -75,7 +75,7 @@ pub fn init(db_path: &Path) -> AppResult<()> {
     Ok(())
 }
 
-fn with_conn<F, T>(f: F) -> AppResult<T>
+pub fn with_conn<F, T>(f: F) -> AppResult<T>
 where
     F: FnOnce(&mut Connection) -> AppResult<T>,
 {
@@ -135,12 +135,68 @@ CREATE VIRTUAL TABLE IF NOT EXISTS fts_extractions USING fts5(
 );
 "#;
 
+const MIGRATION_V2: &str = r#"
+-- Reference only — actual statements are inlined in `migrate()` to be
+-- safely idempotent (CREATE TABLE IF NOT EXISTS, and ALTER TABLE guarded
+-- by a pragma_table_info check). Kept here as documentation.
+CREATE TABLE IF NOT EXISTS user_schemas (
+    id           TEXT PRIMARY KEY,
+    name         TEXT NOT NULL,
+    description  TEXT NOT NULL DEFAULT '',
+    fields_json  TEXT NOT NULL,
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL,
+    is_archived  INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_user_schemas_archived ON user_schemas(is_archived);
+ALTER TABLE extractions ADD COLUMN tags_json TEXT NOT NULL DEFAULT '[]';
+"#;
+
+#[allow(dead_code)]
+const _MIGRATION_V2_DOCS: &str = MIGRATION_V2;
+
 fn migrate(conn: &Connection) -> AppResult<()> {
     let user_version: i64 = conn.pragma_query_value(None, "user_version", |r| r.get(0))?;
     if user_version == 0 {
-        log::info!("running initial schema migration");
+        log::info!("running v1 migration (initial schema)");
         conn.execute_batch(SCHEMA)?;
         conn.pragma_update(None, "user_version", 1)?;
+    }
+    if user_version < 2 {
+        log::info!("running v2 migration (user_schemas + tags_json)");
+        // ALTER TABLE ADD COLUMN is idempotent in spirit but SQLite errors on
+        // re-add; we guard by checking the column first.
+        let has_tags: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('extractions') WHERE name = 'tags_json'",
+            [],
+            |r| r.get(0),
+        )?;
+        if has_tags == 0 {
+            conn.execute_batch(
+                "ALTER TABLE extractions ADD COLUMN tags_json TEXT NOT NULL DEFAULT '[]';",
+            )?;
+        }
+        // user_schemas may already exist from a prior partial migration
+        let has_user_schemas: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='user_schemas'",
+            [],
+            |r| r.get(0),
+        )?;
+        if has_user_schemas == 0 {
+            conn.execute_batch(
+                "CREATE TABLE user_schemas (
+                    id           TEXT PRIMARY KEY,
+                    name         TEXT NOT NULL,
+                    description  TEXT NOT NULL DEFAULT '',
+                    fields_json  TEXT NOT NULL,
+                    created_at   TEXT NOT NULL,
+                    updated_at   TEXT NOT NULL,
+                    is_archived  INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE INDEX idx_user_schemas_archived ON user_schemas(is_archived);",
+            )?;
+        }
+        conn.pragma_update(None, "user_version", 2)?;
     }
     Ok(())
 }

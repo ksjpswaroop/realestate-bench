@@ -47,6 +47,42 @@ export type DbInfo = {
   size_bytes: number;
 };
 
+// Phase 2: User-defined schemas + tags
+export type UserFieldType =
+  | "short_text"
+  | "long_text"
+  | "number"
+  | "date"
+  | "yes_no"
+  | "choice"
+  | "list";
+
+export type UserFieldDef = {
+  name: string;
+  label: string;
+  type: UserFieldType;
+  description: string;
+  required: boolean;
+  options: string[];
+  min: number | null;
+  max: number | null;
+};
+
+export type UserSchemaRow = {
+  id: string;
+  name: string;
+  description: string;
+  fields_json: string;
+  created_at: string;
+  updated_at: string;
+  is_archived: boolean;
+};
+
+export type TagCount = {
+  tag: string;
+  count: number;
+};
+
 export const ipc = {
   listSchemas: () => invoke<SchemaInfo[]>("list_schemas"),
   extractDocument: (doc_path: string, schema_id: string) =>
@@ -69,4 +105,36 @@ export const ipc = {
     invoke<string>("export_csv", { extractionIds: extraction_ids, outPath: out_path }),
   dbInfo: () => invoke<DbInfo>("db_info"),
   wipeDb: () => invoke<void>("wipe_db"),
+
+  // --- Phase 2: user schemas ---
+  listUserSchemas: (include_archived = false) =>
+    invoke<UserSchemaRow[]>("list_user_schemas", { includeArchived: include_archived }),
+  getUserSchema: (id: string) =>
+    invoke<UserSchemaRow | null>("get_user_schema", { id }),
+  createUserSchema: (name: string, description: string, fields: UserFieldDef[]) =>
+    invoke<UserSchemaRow>("create_user_schema", { name, description, fields }),
+  updateUserSchema: (
+    id: string,
+    name?: string,
+    description?: string,
+    fields?: UserFieldDef[],
+  ) =>
+    invoke<UserSchemaRow>("update_user_schema", {
+      id,
+      name: name ?? null,
+      description: description ?? null,
+      fields: fields ?? null,
+    }),
+  deleteUserSchema: (id: string) => invoke<void>("delete_user_schema", { id }),
+
+  // --- Phase 2: tags ---
+  getExtractionTags: (extraction_id: number) =>
+    invoke<string[]>("get_extraction_tags", { extractionId: extraction_id }),
+  addExtractionTag: (extraction_id: number, tag: string) =>
+    invoke<string[]>("add_extraction_tag", { extractionId: extraction_id, tag }),
+  removeExtractionTag: (extraction_id: number, tag: string) =>
+    invoke<string[]>("remove_extraction_tag", { extractionId: extraction_id, tag }),
+  listAllTags: () => invoke<TagCount[]>("list_all_tags"),
+  filterExtractionsByTag: (tag: string) =>
+    invoke<number[]>("filter_extractions_by_tag", { tag }),
 };
