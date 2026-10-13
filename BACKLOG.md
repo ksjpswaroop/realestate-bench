@@ -1026,6 +1026,41 @@ Ships a Tauri 2 desktop app that runs the Phase 1 extractor locally. No hosted s
 
 **Tracks:** US-600..US-640 (40 stories)
 
+**Implementation status (2026-10-13):** core MVP shipped.
+
+| Component | Status | Evidence |
+|-----------|--------|----------|
+| Tauri 2 + React + Vite scaffold (US-600) | ✅ | `desktop/{src, src-tauri, package.json, tauri.conf.json}` all present |
+| Tauri capabilities (US-601) | ✅ | `capabilities/default.json` (least-privilege, sidecar-scoped shell) |
+| Sidecar via `externalBin` (US-603) | ✅ | `bin/realestate-extract-aarch64-apple-darwin`; PYTHONPATH cleared |
+| Sidecar CLI (US-604) | ✅ | 6/6 pytest passing (`tests/test_sidecar.py`); ~600ms latency |
+| React app shell (US-605) | ✅ | Hash router: Extract / Extractions / Settings |
+| Drag-and-drop (US-606) + picker (US-607) | ✅ | `DropPage.tsx` |
+| Schema picker (US-611) + built-ins (US-612) | ✅ | LeaseAddendum, Invoice, RentRoll; `SCHEMA_REGISTRY` |
+| End-to-end extraction (US-613) | ✅ | `cargo test --test sidecar_smoke` passes |
+| Per-field confidence (US-614) | ✅ | `ExtractionView.tsx` color-coded |
+| "Needs review" panel (US-615) | ✅ | Color coding < 0.4 = red |
+| Extraction history (US-619) | ✅ | `ExtractionsPage.tsx` with table |
+| Filter / sort (US-620) | ✅ | Schema + text filters |
+| Delete (US-621) | ✅ | Soft delete via `db::soft_delete_extraction` |
+| SQLite init (US-622) | ✅ | WAL mode, migrations via `PRAGMA user_version` |
+| FTS5 search (US-623) | ✅ | `cargo test --test db_flow` passes |
+| Edit field inline (US-624) | ✅ | `record_edit` IPC; click-to-edit in `ExtractionView.tsx` |
+| Edit history (US-625) | ✅ | `edits` table; `db::list_edits` |
+| Excel export (US-628..US-630) | ✅ | Hand-written XLSX in `commands.rs::write_excel`; opens in Excel/LibreOffice |
+| JSON export (US-638) | ✅ | `commands.rs::export_json` |
+| CSV export (US-639) | ✅ | `commands.rs::export_csv` |
+| Auto-save (US-633) | ✅ | `commands.rs::extract_document` always inserts |
+| Show DB path (US-634) | ✅ | `SettingsPage.tsx` `db_info` |
+| Wipe DB (US-637) | ✅ | `commands.rs::wipe_db` |
+| Multi-extraction Excel (US-629) | ✅ | `export_excel` accepts `[i64]` |
+| Edited values win (US-631) | ✅ | `write_excel` checks `edit_map` per field |
+
+**Deferred to Phase 1.6+:** batch extraction (US-618), OCR fallback (US-609), embedded source text (US-632), export edits JSON (US-627), undo edit (US-626), source text highlight (US-616), export entire DB (US-635), import DB (US-636), one-click all formats (US-640).
+
+**Build artifact:** `desktop/src-tauri/target/release/bundle/macos/RealEstate-Bench.app` (6.1 MiB)
+**Tests passing:** 6/6 pytest + 2/2 cargo integration + `cargo build --release` + `vite build` + `tsc --noEmit` + `.app` launches.
+
 ### US-600 [P0, 3pt] Scaffold Tauri 2 + React + TypeScript app
 **As a** developer
 **I want to** scaffold a Tauri 2 app with a React/TypeScript frontend

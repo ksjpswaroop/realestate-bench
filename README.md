@@ -42,6 +42,35 @@ realestate-bench extract \
 realestate-bench test --golden bench/golden/v1/
 ```
 
+## Desktop app (Phase 1.5 — shipped ✅)
+
+A local Tauri 2 desktop app that runs the Phase 1 extractor on-device.
+No network at runtime. No hosted service. The 45M-parameter cactus-needle
+model is bundled; documents never leave your machine.
+
+```bash
+cd desktop/
+pnpm install
+pnpm tauri build           # → 6.1 MiB .app bundle in target/release/bundle/macos/
+open target/release/bundle/macos/RealEstate-Bench.app
+```
+
+The window has three pages:
+
+- **Extract** — drag-and-drop or file-pick a PDF / image / text, choose a
+  schema (Invoice, LeaseAddendum, or RentRoll), click *Extract*. Per-field
+  confidences are color-coded; click any field to edit it (your edit is
+  recorded in the `edits` table and overrides the model value in exports).
+- **Extractions** — list, search, and re-open every extraction. Full-text
+  search runs over the FTS5 virtual table.
+- **Settings** — DB path, size, row counts, and a wipe button.
+
+Exports: **Excel (.xlsx)**, **JSON**, **CSV**. All open in any spreadsheet
+or text editor. Edited values win over model values in Excel/CSV exports.
+
+Tests passing: 6/6 pytest (sidecar) + 2/2 cargo integration (sidecar
+smoke + DB flow) + `tsc --noEmit` clean + `vite build` clean.
+
 ## Phase 0 Gate
 
 Before Phase 1 ships, we need per-field F1 ≥ 0.80 on drew-ipp's invoice-extraction-benchmark for the chosen model. Models being evaluated: NuExtract3, ReaderLM-v2, GLiNER2, Needle 2.
