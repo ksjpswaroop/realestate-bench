@@ -105,6 +105,155 @@ RealEstate-Bench is a CLI + Python library with a phased hosted-API future. The 
 - **Phase 1:** Hugging Face Hub (model weight download only)
 - **Phase 3 (future):** Stripe (billing), PagerDuty (alerts)
 
+## 3. Desktop App Component (Phase 1.5)
+
+The desktop app is a **Tauri 2** shell that hosts a React/TypeScript UI and a Rust core; the Rust core spawns a **Python sidecar** for the actual extraction work. Nothing leaves the machine.
+
+### 3.1 Why this split (Tauri + Python sidecar)
+
+We chose not to write the model runner in Rust because:
+1. **Cactus-needle is Apache-2.0 and ships as a Python wheel** (`pip install cactus-needle`, ~115 KB) with a battle-tested CLI. Reimplementing the grammar compiler + Simple Attention Network inference in Rust is months of work for zero accuracy gain.
+2. **Tauri's `externalBin` / `resources`** let us bundle a Python interpreter + a `uv`-pinned venv with the app, so the user sees a single `.app` / `.msi` / `.AppImage`.
+3. The model binary itself is **14 MB** — a tiny fraction of the bundle. The Python sidecar is the only piece that needs `uv` to ship slim.
+
+The Rust core handles everything we want in a native, type-safe, low-overhead way:
+- File system (PDF/image read, drag-and-drop ingestion)
+- SQLite (`rusqlite[bundled]`) for the extracted-records store
+- Excel export (`rust_xlsxwriter` — small, fast, no Java)
+- Process spawn + IPC to the Python sidecar
+
+### 3.2 Process topology
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Tauri Webview (React/TS UI)                     │
+│  - Drag-drop a PDF                                                  │
+│  - Pick a schema (lease / invoice / custom)                         │
+│  - Render extracted JSON with per-field confidence coloring         │
+│  - Edit fields inline                                               │
+│  - Click "Export Excel" / "Export JSON" / "Open DB folder"          │
+└─────────────────────────────────────────────────────────────────────┘
+                                  │ Tauri commands (typed)
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                 Rust Core (src-tauri/src/)                          │
+│  - commands/extract.rs  → spawn realestate-extract, parse JSON      │
+│  - commands/db.rs       → SQLite CRUD on extractions + edits        │
+│  - commands/export.rs   → rust_xlsxwriter, JSON, CSV                │
+│  - db.rs                → rusqlite[bundled], FTS5                   │
+│  - schema_loader.rs     → load Pydantic schemas from YAML/JSON      │
+└─────────────────────────────────────────────────────────────────────┘
+            │                                            │
+            ▼                                            ▼
+┌──────────────────────────┐              ┌──────────────────────────┐
+│  Python Sidecar          │              │  Local SQLite DB         │
+│  realestate-extract      │              │  ~/Library/.../app.db    │
+│  (pip install            │              │  - documents             │
+│   realestate-bench +     │              │  - extractions           │
+│   cactus-needle)         │              │  - edits                 │
+│                          │              │  - schemas (custom)      │
+│  Reads PDF (pypdf) /     │              └──────────────────────────┘
+│  OCR (paddleocr or       │
+│  tesseract) → plain      │              ┌──────────────────────────┐
+│  text → cactus-needle.   │              │  Tauri resources/        │
+│  extract(text, Schema)   │              │  bundled/needle.blob     │
+│  → JSON + confidences    │              │  (14 MB, model)          │
+└──────────────────────────┘              └──────────────────────────┘
+```
+
+### 3.3 The cactus-needle contract
+
+```python
+import needle
+from pydantic import BaseModel, Field
+from typing import Annotated, Literal
+
+class LeaseAddendum(BaseModel):
+    landlord: Annotated[str, needle.Field(description="Legal name of the landlord or property owner")]
+    tenant:   Annotated[str, needle.Field(description="Legal name of the tenant")]
+    monthly_rent: Annotated[float, needle.Field(gt=0, le=1_000_000, description="USD per month")]
+    currency:   Annotated[Literal["USD", "CAD", "EUR", "GBP", "MXN"], needle.Field()]
+    start_date: Annotated[str, needle.Field(pattern=r"^\d{4}-\d{2}-\d{2}$", description="ISO-8601 date")]
+    end_date:   Annotated[str, needle.Field(pattern=r"^\d{4}-\d{2}-\d{2}$", description="ISO-8601 date")]
+    renewal_option: Annotated[Literal["none", "1-year", "2-year", "month-to-month"], needle.Field()] = "none"
+    notes: str = ""
+
+result = needle.extract(lease_text, LeaseAddendum)
+# → LeaseAddendum(landlord="...", tenant="...", monthly_rent=2450.0, currency="USD", ...)
+# Grammar-constrained decode means the output always parses; Field constraints
+# (gt/le/pattern/enum) are compiled into the byte-level grammar at runtime.
+```
+
+The sidecar CLI (`realestate-extract`) takes JSON on stdin (path to PDF/image, schema name or schema definition), prints JSON on stdout (extraction + per-field confidence + tokens/sec + model version).
+
+### 3.4 Tauri command surface (desktop)
+
+| Command | Args | Returns |
+|---|---|---|
+| `list_schemas` | — | `Vec<SchemaMeta>` (id, name, fields, version) |
+| `load_schema` | `schema_id: String` | `SchemaYaml` (the full schema definition) |
+| `extract_document` | `doc_path: String, schema_id: String` | `ExtractionResult { fields, confidences, latency_ms }` |
+| `save_extraction` | `extraction: ExtractionResult` | `i64` (db row id) |
+| `update_field` | `extraction_id: i64, field: String, value: Value` | `()` |
+| `list_extractions` | `filter: Option<String>` | `Vec<ExtractionRow>` (id, doc_name, schema, created_at) |
+| `export_excel` | `extraction_ids: Vec<i64>, out_path: String` | `()` |
+| `export_json` | `extraction_ids: Vec<i64>, out_path: String` | `()` |
+| `export_csv` | `extraction_ids: Vec<i64>, out_path: String` | `()` |
+| `get_app_data_dir` | — | `String` (path to the local SQLite DB) |
+
+### 3.5 Storage schema (desktop `app.db`)
+
+```sql
+CREATE TABLE documents (
+    id INTEGER PRIMARY KEY,
+    path TEXT NOT NULL,
+    file_hash TEXT NOT NULL UNIQUE,   -- sha256 of file bytes
+    page_count INTEGER,
+    bytes INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_documents_path ON documents(path);
+
+CREATE TABLE extractions (
+    id INTEGER PRIMARY KEY,
+    document_id INTEGER NOT NULL REFERENCES documents(id),
+    schema_id TEXT NOT NULL,           -- e.g. 'lease_addendum'
+    schema_version TEXT NOT NULL,      -- e.g. '1.0.0'
+    raw_json TEXT NOT NULL,            -- the full extracted JSON
+    confidences_json TEXT NOT NULL,    -- per-field confidence scores
+    mean_confidence REAL NOT NULL,
+    latency_ms INTEGER NOT NULL,
+    model_version TEXT NOT NULL,       -- 'cactus-needle-3.2.1'
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_extractions_doc ON extractions(document_id);
+CREATE INDEX idx_extractions_schema ON extractions(schema_id);
+CREATE INDEX idx_extractions_created ON extractions(created_at);
+
+CREATE TABLE edits (
+    id INTEGER PRIMARY KEY,
+    extraction_id INTEGER NOT NULL REFERENCES extractions(id),
+    field_path TEXT NOT NULL,          -- JSON path, e.g. 'monthly_rent'
+    old_value TEXT,
+    new_value TEXT,
+    edited_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_edits_extraction ON edits(extraction_id);
+
+-- FTS5 for full-text search across all extractions
+CREATE VIRTUAL TABLE extractions_fts USING fts5(
+    doc_path, schema_id, raw_json,
+    content='extractions', content_rowid='id'
+);
+```
+
+### 3.6 Privacy & network policy
+
+- **Zero network calls at runtime.** The app does not call HF, npm, Sentry, analytics, or anywhere.
+- **Tauri CSP** set to `default-src 'self'; connect-src 'none'` to block any accidental XHR.
+- **Tauri capabilities** grant only the permissions we need: `core:default`, `core:window:default`, `dialog:default`, `dialog:allow-save`, `dialog:allow-open`.
+- **Wireshark-verified** during Phase 1.5 acceptance: run the app, do a full extraction + export, confirm no packets leave the machine (other than OS-level mDNS, which we filter).
+
 ## 4. Data Flow
 
 ### Flow A: Single-doc extraction (`extract` command)

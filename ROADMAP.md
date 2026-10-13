@@ -59,6 +59,54 @@ Document-extraction benchmarking and the extractor we'll build on top of it. Goa
 
 ---
 
+## Phase 1.5: Desktop App — local extraction, no cloud (November 2026)
+
+### v1.0-desktop — Tauri 2 app with on-device model
+
+**Target: November 2026** *(in progress — runs in parallel with Phase 1 CLI)*
+
+**Why now:** every real-estate professional we talked to handles documents on their laptop. A hosted API asks them to upload contracts to a third party — that is a non-starter for leases, NDAs, and pre-NDA financial statements. The desktop app ships the same Phase 1 extractor as a local-first app that **never leaves the machine**.
+
+**The stack (locked in this phase):**
+- **App shell:** Tauri 2 (OS webview, not bundled Chromium) + React + TypeScript + Vite
+- **Model:** [Needle 2/3 by Cactus Compute](https://huggingface.co/Cactus-Compute/needle2) — 45M parameters, **single 14 MB binary, 28 MB RAM, 500 tok/s on a Raspberry Pi 5**, grammar-constrained JSON output via a byte-level decoder grammar compiled from Pydantic schemas. Apache-2.0, on-device, no GPU.
+- **Extraction layer:** Python sidecar using `cactus-needle` PyPI package (`pip install cactus-needle`); Tauri Rust core spawns it as a child process for each extraction.
+- **Validation:** same Pydantic schemas + post-extraction rules as the CLI (`realestate_bench.schemas`).
+- **Local DB:** SQLite via `rusqlite[bundled]` for the extracted-records store, FTS5 for search.
+- **Export:** Excel (`.xlsx` via `rust_xlsxwriter`), JSON, CSV, plus the local SQLite DB.
+- **First schema:** lease addendum (matches the Phase 1 schema — same code path).
+
+**The on-device bet:** the PRD's 0.90 F1 gate on `ExtractBench` is not what the desktop app targets. The desktop app targets **user-perceived correctness on real lease documents**, with confidence flags below 0.7. We will publish the F1 on a held-out 20-doc lease set as the *desktop* quality bar (target: 0.75 per-field F1 — enough to be a 10× productivity multiplier for lease abstracting, not enough to skip human review). Phase 0/1's higher F1 thresholds apply to the hosted API track.
+
+**Features:**
+- [ ] Drag-and-drop a PDF / image / scanned photo into the app
+- [ ] Pick a schema (lease addendum, invoice, custom) — declared in YAML or Python
+- [ ] Run extraction locally; show the JSON with **per-field confidence coloring** (green ≥ 0.7, yellow 0.4-0.7, red < 0.4)
+- [ ] Edit any field inline; edits are stored alongside the extraction
+- [ ] Export to **Excel (one sheet per document, one row per field)**, JSON, CSV, or the local SQLite DB
+- [ ] Bundle the Python sidecar (`realestate-extract`) into the Tauri app via Tauri's `externalBin` / `resources` so users get a single `.app` / `.msi` / `.AppImage` install
+- [ ] No network calls at runtime; no telemetry; works fully offline
+
+**Success metrics:**
+- App launches and extracts a 5-page lease in < 30 seconds on M-series Mac
+- 0.75 per-field F1 on a 20-doc held-out lease set (vs ground truth)
+- Bundle size < 50 MB (Tauri shell + Needle binary + Python sidecar)
+- Zero network egress verified in Wireshark during a full extraction
+
+**Risks specific to this phase:**
+| Risk | Mitigation |
+|---|---|
+| Needle 2 is small (45M) — extraction accuracy on messy real-world scans may be < 0.70 | Grammar-constrained decoding guarantees well-formed output; Pydantic validators catch bad values; confidence score below 0.7 forces review. |
+| Tauri compile is slow (4-5 min first build, 30s incremental) | Manual scaffold (no `tauri init`); stub `dist/index.html` before `cargo check`. |
+| Cactus-needle binary is x86_64 / ARM64 only — no Apple Silicon universal build? | Verify cross-arch download on first install; fall back to source build if needed. |
+| Python sidecar adds 200 MB to the bundle | Use `uv` to ship a static-linked minimal env; pin to CPython 3.12; exclude `pip`/`setuptools`. |
+
+**Out of scope for this phase:**
+- Multi-user, sync, cloud backup
+- Phase 1.5 is the **standalone desktop product**; Phase 2+ reliability work applies to both tracks
+
+---
+
 ## Phase 2: Reliability + second use case (December 2026 → January 2027)
 
 ### v1.1 - Production-hardened on two schemas

@@ -1020,6 +1020,455 @@ User stories organized by phase. Story IDs are stable: US-001..099 = Phase 0, US
 
 ---
 
+## Phase 1.5: Desktop App (November 2026)
+
+Ships a Tauri 2 desktop app that runs the Phase 1 extractor locally. No hosted service. No network at runtime. Built on the cactus-needle 45M model (Apache-2.0).
+
+**Tracks:** US-600..US-640 (40 stories)
+
+### US-600 [P0, 3pt] Scaffold Tauri 2 + React + TypeScript app
+**As a** developer
+**I want to** scaffold a Tauri 2 app with a React/TypeScript frontend
+**So that** FR-011 is satisfied (Tauri 2 desktop app shell)
+
+**Acceptance criteria:**
+- [ ] `desktop/` directory created with `src/`, `src-tauri/`, `package.json`, `tauri.conf.json`
+- [ ] `pnpm install` succeeds; `pnpm tauri dev` launches a window
+- [ ] Manual scaffold (no `tauri init` interactive prompt); follows the `tauri-desktop-development` skill pattern
+- [ ] `dist/index.html` stub created before first `cargo check` to avoid proc-macro panic
+- [ ] `.gitignore` excludes `node_modules/`, `target/`, `dist/`
+
+### US-601 [P0, 2pt] Configure Tauri capabilities
+**As a** security-conscious user
+**I want to** the app to have strict least-privilege capabilities
+**So that** FR-011 is satisfied (no malicious PDF can exploit the webview)
+
+**Acceptance criteria:**
+- [ ] `src-tauri/capabilities/default.json` grants only: `core:default`, `core:window:default`, `core:path:default`, `dialog:default`, `dialog:allow-save`, `dialog:allow-open`
+- [ ] No wildcard permissions
+- [ ] CSP set to `default-src 'self'; connect-src 'none'` in `tauri.conf.json`
+- [ ] Tauri `identifier` is `com.ksjpswaroop.realestate-bench` (not the default `com.tauri.dev`)
+
+### US-602 [P0, 2pt] Bundle cactus-needle as a Tauri resource
+**As a** developer
+**I want to** ship the cactus-needle model binary inside the app bundle
+**So that** FR-013 is satisfied (no first-launch download)
+
+**Acceptance criteria:**
+- [ ] Needle model binary (~14 MB) copied to `src-tauri/resources/needle.blob` at build time
+- [ ] `tauri.conf.json` lists the resource in `bundle.resources`
+- [ ] At runtime, `cactus-needle` finds the bundled model (no network fetch)
+- [ ] Bundle size delta from this addition is < 20 MB
+
+### US-603 [P0, 5pt] Bundle Python sidecar via uv
+**As a** developer
+**I want to** ship a Python interpreter + the `realestate-extract` script as a Tauri external bin
+**So that** FR-011 + FR-013 are satisfied (no Python install required)
+
+**Acceptance criteria:**
+- [ ] `uv` venv at `desktop/sidecar/.venv` with `cactus-needle`, `pydantic`, `pypdf`, `pillow` installed
+- [ ] `tauri.conf.json` declares `realestate-extract` as an `externalBin`
+- [ ] Sidecar binary launches on first call; returns JSON to stdout
+- [ ] Total sidecar size < 80 MB (CPython 3.12 + minimal deps)
+- [ ] Tauri 2 `shell` plugin configured with `sidecar: true`
+
+### US-604 [P0, 3pt] Build the `realestate-extract` sidecar CLI
+**As a** Tauri app
+**I want to** call a Python script that takes JSON on stdin and prints JSON on stdout
+**So that** FR-013 is satisfied (Rust core decoupled from cactus-needle's API)
+
+**Acceptance criteria:**
+- [ ] `realestate-extract` reads `{doc_path, schema_id, schema_yaml}` from stdin
+- [ ] Returns `{extraction: {...}, confidences: {...}, latency_ms: int, model_version: str, error: null | str}` on stdout
+- [ ] Supported input: PDF (via pypdf), JPEG/PNG (via Pillow → pytesseract for OCR fallback)
+- [ ] No network calls (asserted via `socket` mock in tests)
+- [ ] Unit test: feed it a known lease text, assert the output passes the schema
+
+### US-605 [P0, 3pt] Build the React app shell
+**As a** user
+**I want to** see a clean app shell with a sidebar, drop zone, and main content area
+**So that** FR-011 + FR-012 are satisfied (place to drop files and see results)
+
+**Acceptance criteria:**
+- [ ] Sidebar with: Schemas, Extractions, Settings
+- [ ] Main content area: drop zone when empty, extraction view when a doc is loaded
+- [ ] Top bar shows app name, current schema, current document
+- [ ] Dark/light theme toggle (default: light)
+- [ ] `variables.css` design tokens (per `tauri-desktop-development` skill pattern)
+
+### US-606 [P0, 3pt] Drag-and-drop file ingestion
+**As a** user
+**I want to** drop a PDF or image onto the app
+**So that** FR-012 is satisfied (no file picker)
+
+**Acceptance criteria:**
+- [ ] Drop zone accepts PDF, JPEG, PNG, TIFF, HEIC
+- [ ] Visual feedback on hover (highlight + "Drop here" message)
+- [ ] On drop, calls `extract_document` Tauri command
+- [ ] Shows progress bar during ingestion
+- [ ] Rejects unsupported types with a clear toast
+
+### US-607 [P1, 2pt] File picker fallback
+**As a** user
+**I want to** click "Open file" if dragging doesn't work
+**So that** FR-012 is satisfied (alternative to drag-and-drop)
+
+**Acceptance criteria:**
+- [ ] "Open file" button triggers native `dialog:allow-open` dialog
+- [ ] Same file type filter as drag-and-drop
+- [ ] Returns the selected path to the same flow as drop
+
+### US-608 [P1, 2pt] Display file metadata
+**As a** user
+**I want to** see the file name, size, and page count after ingestion
+**So that** FR-012 is satisfied (visibility into what was ingested)
+
+**Acceptance criteria:**
+- [ ] Show: file name, size in MB, page count (for PDFs)
+- [ ] Show sha256 (truncated) so the user can verify it's the right file
+- [ ] Show ingestion latency
+
+### US-609 [P1, 3pt] OCR fallback for scanned PDFs
+**As a** user
+**I want to** extract from scanned PDFs (image-only)
+**So that** FR-012 + FR-013 are satisfied (scanned leases work too)
+
+**Acceptance criteria:**
+- [ ] If pypdf returns 0 text, run pytesseract on each page
+- [ ] Show a "OCR applied" badge in the UI
+- [ ] OCR latency counted in total latency
+- [ ] Test on the SROIE dataset (which has scanned receipts)
+
+### US-610 [P1, 2pt] Handle ingest errors
+**As a** user
+**I want to** see clear error messages when ingestion fails
+**So that** FR-012 is satisfied (recoverable failure UX)
+
+**Acceptance criteria:**
+- [ ] Corrupt PDF → "File is corrupt or not a valid PDF"
+- [ ] Encrypted PDF → "PDF is password-protected; please unlock it first"
+- [ ] Unsupported type → "File type .xyz is not supported. Use PDF, JPEG, PNG, TIFF"
+- [ ] File too large (>100 MB) → "File is XX MB; max is 100 MB. Resize or split the file."
+- [ ] All errors are shown as a dismissible toast
+
+### US-611 [P0, 5pt] Schema picker UI
+**As a** user
+**I want to** pick a schema from a dropdown
+**So that** FR-013 is satisfied (right fields for the right doc)
+
+**Acceptance criteria:**
+- [ ] Dropdown shows all built-in schemas: lease_addendum, invoice, custom
+- [ ] Selecting a schema shows its fields and field docs
+- [ ] "Custom YAML" option lets the user paste a Pydantic schema or upload a YAML file
+- [ ] Selected schema is remembered across sessions (stored in `app.db`)
+
+### US-612 [P0, 2pt] Define built-in schemas
+**As a** developer
+**I want to** ship lease_addendum, invoice, and rent_roll schemas as built-ins
+**So that** FR-013 is satisfied (useful defaults on first launch)
+
+**Acceptance criteria:**
+- [ ] `realestate_bench/schemas/lease_addendum.py` defines the Pydantic model
+- [ ] `realestate_bench/schemas/invoice.py` defines the invoice model
+- [ ] `realestate_bench/schemas/rent_roll.py` defines the rent roll model
+- [ ] Each schema has at least 6 fields with descriptions
+- [ ] Each schema ships with a 1-paragraph "intended document type" docstring
+
+### US-613 [P0, 5pt] Run extraction end-to-end
+**As a** user
+**I want to** click "Extract" and see the result
+**So that** FR-013 is satisfied (full pipeline works)
+
+**Acceptance criteria:**
+- [ ] Click "Extract" → spinner appears → JSON result renders in < 30 seconds
+- [ ] Result is auto-saved to `app.db` on success
+- [ ] Failure shows the error from the sidecar (`MODEL_ERROR`, `SCHEMA_INVALID`, etc.)
+- [ ] Extraction latency shown in the result header
+
+### US-614 [P0, 3pt] Per-field confidence display
+**As a** user
+**I want to** see a confidence score for every field
+**So that** FR-014 is satisfied (know what to verify)
+
+**Acceptance criteria:**
+- [ ] Each field shows a number 0-1 next to its value
+- [ ] Background color: green ≥ 0.7, yellow 0.4-0.7, red < 0.4
+- [ ] Mean confidence shown in the header
+- [ ] Color scheme passes WCAG AA contrast
+
+### US-615 [P0, 2pt] "Needs review" panel
+**As a** user
+**I want to** see a list of low-confidence fields at a glance
+**So that** FR-014 is satisfied (prioritize my review)
+
+**Acceptance criteria:**
+- [ ] Panel lists all fields with confidence < 0.4
+- [ ] Click a field in the list to scroll to it in the main view
+- [ ] Panel is collapsible
+
+### US-616 [P1, 3pt] Show source text highlighting
+**As a** user
+**I want to** see which parts of the source text the model used
+**So that** FR-014 is satisfied (verify the extraction)
+
+**Acceptance criteria:**
+- [ ] Clicking a field highlights the relevant text in a "source view" tab
+- [ ] Source view is a read-only render of the original document
+- [ ] Highlighting is based on cactus-needle's per-field trace (if available)
+
+### US-617 [P1, 2pt] Re-run extraction with different schema
+**As a** user
+**I want to** re-run extraction on the same doc with a different schema
+**So that** FR-013 is satisfied (no need to re-upload)
+
+**Acceptance criteria:**
+- [ ] "Re-extract" button in the result header
+- [ ] Pick a new schema → re-runs the sidecar
+- [ ] Old extraction is preserved in DB (new row is created)
+- [ ] UI shows all extractions for the same document in a dropdown
+
+### US-618 [P1, 3pt] Batch extraction (multiple files at once)
+**As a** user
+**I want to** drop 20 PDFs and have them all extracted
+**So that** FR-013 + FR-012 are satisfied (bulk workflow)
+
+**Acceptance criteria:**
+- [ ] Drop multiple files → each is extracted in sequence
+- [ ] Progress bar shows N/M complete
+- [ ] Failures don't stop the batch; they're listed at the end
+- [ ] All successful extractions auto-saved to DB
+
+### US-619 [P0, 2pt] Show extraction history
+**As a** user
+**I want to** see all past extractions
+**So that** FR-017 is satisfied (browse history)
+
+**Acceptance criteria:**
+- [ ] "Extractions" sidebar item opens a list view
+- [ ] List shows: document name, schema, created_at, mean confidence
+- [ ] Click a row to open that extraction
+- [ ] FTS5 search box filters by document name or extracted text
+
+### US-620 [P1, 2pt] Filter / sort extractions
+**As a** user
+**I want to** sort extractions by date, confidence, or schema
+**So that** FR-017 is satisfied (find what I need quickly)
+
+**Acceptance criteria:**
+- [ ] Sort by: created_at (asc/desc), mean confidence (asc/desc), schema_id
+- [ ] Filter by schema_id and date range
+- [ ] URL is shareable (filter state in query params)
+
+### US-621 [P1, 2pt] Delete an extraction
+**As a** user
+**I want to** delete an extraction
+**So that** FR-017 is satisfied (clean up mistakes)
+
+**Acceptance criteria:**
+- [ ] Trash icon on each row in the list
+- [ ] Confirmation dialog ("Delete extraction for X.pdf?")
+- [ ] Soft-delete (set `deleted_at`); physical delete is a separate admin action
+
+### US-622 [P0, 2pt] SQLite database initialization
+**As a** developer
+**I want to** the app to create `app.db` on first launch
+**So that** FR-017 is satisfied (extractions are persisted)
+
+**Acceptance criteria:**
+- [ ] DB path is the OS-appropriate app data dir (e.g. `~/Library/Application Support/com.ksjpswaroop.realestate-bench/`)
+- [ ] Schema matches ARCHITECTURE §3.5 exactly
+- [ ] Migrations are idempotent (use `PRAGMA user_version`)
+- [ ] DB is created with WAL mode for better concurrency
+
+### US-623 [P0, 3pt] FTS5 search across extractions
+**As a** user
+**I want to** search across all extractions
+**So that** FR-017 is satisfied (find a specific lease or invoice)
+
+**Acceptance criteria:**
+- [ ] FTS5 virtual table mirrors `extractions` content
+- [ ] Search box in the Extractions view
+- [ ] Query syntax: simple keywords ("Acme Corp"), phrases ("monthly rent 2450")
+- [ ] Results are ranked by BM25
+
+### US-624 [P0, 3pt] Edit a field inline
+**As a** user
+**I want to** click a field and change its value
+**So that** FR-015 is satisfied (correct the model)
+
+**Acceptance criteria:**
+- [ ] Click a field → it becomes an input
+- [ ] Enter / blur saves the edit
+- [ ] Edit is stored in `edits` table with old_value, new_value, timestamp
+- [ ] Background turns blue to indicate "user-verified"
+
+### US-625 [P0, 2pt] Show edit history per field
+**As a** user
+**I want to** see all previous values for a field
+**So that** FR-015 is satisfied (audit trail)
+
+**Acceptance criteria:**
+- [ ] Click "history" on a field → shows all edits
+- [ ] Each edit shows: old value, new value, edited_at
+- [ ] Original model value is shown in strikethrough
+
+### US-626 [P1, 2pt] Undo an edit
+**As a** user
+**I want to** undo my last edit
+**So that** FR-015 is satisfied (recover from mistakes)
+
+**Acceptance criteria:**
+- [ ] Cmd+Z (or Ctrl+Z) on a field reverts to the previous value
+- [ ] Edit is logged in `edits` table (so the audit trail is complete)
+
+### US-627 [P1, 3pt] Export edits as a corrections JSON
+**As a** developer
+**I want to** export user corrections
+**So that** FR-015 is satisfied (eval data + future training)
+
+**Acceptance criteria:**
+- [ ] "Export corrections" button in Settings
+- [ ] JSON file with `{doc_path, schema_id, field_path, original_value, corrected_value, edited_at}` per edit
+- [ ] File is portable (one JSON per workspace)
+
+### US-628 [P0, 5pt] Excel export — single document
+**As a** user
+**I want to** export a single extraction to Excel
+**So that** FR-016 is satisfied (share with stakeholders)
+
+**Acceptance criteria:**
+- [ ] "Export Excel" button on an extraction
+- [ ] Native save dialog (`dialog:allow-save`)
+- [ ] Output: one .xlsx file with one sheet per document
+- [ ] Sheet rows: `field_name | value | confidence | user_verified`
+- [ ] File opens cleanly in Microsoft Excel and LibreOffice Calc
+
+### US-629 [P0, 3pt] Excel export — multiple extractions
+**As a** user
+**I want to** export 20 extractions at once
+**So that** FR-016 is satisfied (build a summary workbook)
+
+**Acceptance criteria:**
+- [ ] Multi-select in the Extractions list
+- [ ] "Export all selected to Excel" button
+- [ ] Output: one .xlsx file with one sheet per extraction
+- [ ] Plus a "Summary" sheet with the union of all fields as columns
+
+### US-630 [P0, 2pt] Excel export — include confidence column
+**As a** user
+**I want to** sort exported rows by confidence
+**So that** FR-016 is satisfied (review the lowest-confidence fields first)
+
+**Acceptance criteria:**
+- [ ] "Confidence" column is a number 0-1
+- [ ] Conditional formatting: red < 0.4, yellow 0.4-0.7, green ≥ 0.7
+- [ ] Works in both Microsoft Excel and LibreOffice Calc
+
+### US-631 [P1, 2pt] Excel export — edited values win
+**As a** user
+**I want to** the Excel export to show my edits, not the model's output
+**So that** FR-015 + FR-016 are satisfied (export reflects my review)
+
+**Acceptance criteria:**
+- [ ] If a field has been edited, the export shows the latest edited value
+- [ ] "Original model value" is in a separate column
+
+### US-632 [P1, 2pt] Excel export — embedded source text
+**As a** user
+**I want to** the Excel file to include a link to the source document
+**So that** FR-016 is satisfied (verify each field against the original)
+
+**Acceptance criteria:**
+- [ ] One sheet per document includes a `source_path` cell
+- [ ] On macOS, click the cell opens the file in Preview
+- [ ] On Windows, click opens the file in the default PDF viewer
+
+### US-633 [P0, 3pt] Auto-save every extraction to SQLite
+**As a** developer
+**I want to** every successful extraction is auto-saved
+**So that** FR-017 is satisfied (no work is lost)
+
+**Acceptance criteria:**
+- [ ] After `extract_document` returns, the result is INSERTed into `extractions` immediately
+- [ ] `documents` row is upserted by sha256 hash
+- [ ] Auto-save is non-blocking (doesn't delay the UI)
+
+### US-634 [P0, 2pt] Show SQLite DB path
+**As a** user
+**I want to** know where the SQLite DB is stored
+**So that** FR-017 is satisfied (I can back it up)
+
+**Acceptance criteria:**
+- [ ] Settings page shows the absolute path to `app.db`
+- [ ] "Open in Finder" / "Show in Explorer" button
+- [ ] "Copy path" button
+
+### US-635 [P1, 3pt] Export entire SQLite DB
+**As a** user
+**I want to** export the whole `app.db` to a portable file
+**So that** FR-017 is satisfied (hand it off to a data analyst)
+
+**Acceptance criteria:**
+- [ ] "Export DB" button in Settings
+- [ ] Saves a copy as `realestate-bench-export-YYYYMMDD.db`
+- [ ] Copy is vacuumed (no WAL file needed to read it)
+
+### US-636 [P1, 2pt] Import a SQLite DB
+**As a** developer
+**I want to** import extractions from another `app.db`
+**So that** FR-017 is satisfied (merge data from multiple machines)
+
+**Acceptance criteria:**
+- [ ] "Import DB" button in Settings
+- [ ] File picker for `.db` file
+- [ ] Rows are inserted with `INSERT OR IGNORE` on (document_id, schema_id) conflict
+- [ ] Import progress shown for large DBs
+
+### US-637 [P1, 2pt] Reset / wipe the DB
+**As a** user
+**I want to** wipe the local DB
+**So that** FR-017 is satisfied (start fresh)
+
+**Acceptance criteria:**
+- [ ] "Wipe local DB" button in Settings (with strong confirmation)
+- [ ] All extractions, edits, and custom schemas are deleted
+- [ ] Settings remain
+
+### US-638 [P1, 2pt] JSON export
+**As a** developer
+**I want to** export extractions as JSON
+**So that** FR-018 is satisfied (pipe into my own pipeline)
+
+**Acceptance criteria:**
+- [ ] "Export JSON" button
+- [ ] Output: `[{...extraction...}, {...extraction...}, ...]`
+- [ ] Each item includes: doc_path, schema_id, fields, confidences, created_at
+
+### US-639 [P1, 2pt] CSV export
+**As a** developer
+**I want to** export extractions as CSV
+**So that** FR-018 is satisfied (open in any spreadsheet)
+
+**Acceptance criteria:**
+- [ ] "Export CSV" button
+- [ ] Output: flat table with columns = union of all fields
+- [ ] Missing fields are empty cells
+- [ ] Confidence column included
+
+### US-640 [P1, 2pt] Export pipeline — one-click all formats
+**As a** user
+**I want to** click "Export all" and get Excel + JSON + CSV
+**So that** FR-016 + FR-018 are satisfied (one-click hand-off)
+
+**Acceptance criteria:**
+- [ ] "Export all" button in the Extractions view
+- [ ] Saves to a user-chosen folder: `<folder>/<schema>-<date>.xlsx`, `...-json.json`, `...-csv.csv`
+- [ ] All three files written in one operation
+
+**Phase 1.5 Gate:** US-600..US-640 all complete; `pnpm tauri dev` launches; a 5-page lease extracts in < 30 sec; Excel export opens cleanly; `app.db` persists across restarts; Wireshark shows zero network traffic during a full extraction.
+
+---
+
 ## Deferred / V2 candidates
 
 - Multi-language extraction (Spanish lease addenda)

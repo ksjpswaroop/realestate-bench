@@ -368,6 +368,100 @@ Each FR has format: `FR-XXX [Priority] — Title` followed by user story + accep
 
 **Tested in:** BACKLOG US-190 to US-192 (Phase 1)
 
+### FR-011 [Must] — Desktop app shell
+**As a** real-estate professional, **I want to** run RealEstate-Bench as a local desktop app on my laptop, **so that** I can extract structured data from leases and contracts without uploading them to a hosted service.
+
+**Acceptance criteria:**
+- [ ] Tauri 2 app launches on macOS, Windows, and Linux from a single installer (`.app`, `.msi`, `.AppImage`)
+- [ ] App window opens in < 3 seconds on an M-series Mac
+- [ ] No network calls at runtime (verified via Wireshark during smoke test)
+- [ ] Bundle size < 100 MB (Tauri shell + Needle binary + Python sidecar)
+- [ ] All extraction work happens in a local Python sidecar (`realestate-extract`)
+
+**Tested in:** BACKLOG US-600 to US-604 (Phase 1.5)
+
+### FR-012 [Must] — Drag-and-drop document ingestion
+**As a** user, **I want to** drop a PDF, JPEG, PNG, or TIFF into the app, **so that** I can extract data from it without typing a file path.
+
+**Acceptance criteria:**
+- [ ] Drag a file onto the app window → ingestion starts
+- [ ] Supported types: PDF, JPEG, PNG, TIFF, HEIC (auto-convert via Pillow)
+- [ ] Files larger than 100 MB show a warning but are still processed
+- [ ] Ingestion progress is shown (page-by-page for multi-page PDFs)
+- [ ] Failed ingestions show a clear error (corrupt, encrypted, unsupported)
+
+**Tested in:** BACKLOG US-605 to US-610 (Phase 1.5)
+
+### FR-013 [Must] — On-device extraction with cactus-needle
+**As a** user, **I want to** run extraction locally against a 45M-parameter Needle model, **so that** my documents never leave the machine.
+
+**Acceptance criteria:**
+- [ ] Pick a schema from a built-in list (lease_addendum, invoice, custom YAML)
+- [ ] Extraction runs in a Python sidecar (`realestate-extract`); the sidecar returns the JSON + per-field confidence + latency
+- [ ] Model binary (~14 MB) is bundled with the app; no download on first use
+- [ ] Mean confidence per extraction is shown; fields with confidence < 0.7 are flagged for review
+- [ ] 5-page lease extracts in < 30 seconds on an M-series Mac
+- [ ] Pydantic validation always passes (grammar-constrained decode guarantees this)
+
+**Tested in:** BACKLOG US-611 to US-618 (Phase 1.5)
+
+### FR-014 [Must] — Per-field confidence display
+**As a** user, **I want to** see a confidence score for every extracted field, **so that** I know which fields to verify by hand.
+
+**Acceptance criteria:**
+- [ ] Each field shows a number 0-1 next to its value
+- [ ] Background color: green ≥ 0.7, yellow 0.4-0.7, red < 0.4
+- [ ] Clicking a field shows the model's "reasoning trace" (which parts of the source text it pulled from)
+- [ ] Mean confidence for the whole extraction is shown in the header
+- [ ] Low-confidence fields (red) are listed in a "needs review" panel
+
+**Tested in:** BACKLOG US-619 to US-623 (Phase 1.5)
+
+### FR-015 [Must] — Edit fields inline
+**As a** user, **I want to** edit any extracted field, **so that** I can correct the model's mistakes without leaving the app.
+
+**Acceptance criteria:**
+- [ ] Each field is an editable input
+- [ ] Edits are stored in the `edits` table with timestamp, old value, new value
+- [ ] Editing marks the field as "user-verified" (overrides confidence for downstream review)
+- [ ] Edits are exportable as a separate "corrections" JSON (used as eval data later)
+
+**Tested in:** BACKLOG US-624 to US-627 (Phase 1.5)
+
+### FR-016 [Must] — Export to Excel
+**As a** user, **I want to** export extractions to an Excel file (one sheet per document, one row per field), **so that** I can share them with non-technical stakeholders.
+
+**Acceptance criteria:**
+- [ ] Click "Export Excel" → native save dialog → .xlsx file written
+- [ ] One sheet per document; first row is field names; one row per field/value
+- [ ] Confidence column included (0-1) so reviewers can sort by lowest confidence first
+- [ ] Edits are reflected in the export (latest value wins)
+- [ ] File opens cleanly in Microsoft Excel and LibreOffice Calc (validated with real files)
+
+**Tested in:** BACKLOG US-628 to US-632 (Phase 1.5)
+
+### FR-017 [Must] — Export to local SQLite database
+**As a** user, **I want to** have all extractions stored in a local SQLite database, **so that** I can query them later or hand them off to a data analyst.
+
+**Acceptance criteria:**
+- [ ] Every extraction is auto-saved to `app.db` immediately on success
+- [ ] DB schema matches ARCHITECTURE §3.5 (documents, extractions, edits)
+- [ ] FTS5 full-text search across all extractions works
+- [ ] "Open DB folder" button reveals the path in Finder/Explorer
+- [ ] DB is portable: copy `app.db` to another machine and the schema works
+
+**Tested in:** BACKLOG US-633 to US-637 (Phase 1.5)
+
+### FR-018 [Could] — Export to JSON / CSV
+**As a** developer, **I want to** export extractions to JSON and CSV, **so that** I can pipe them into my own data pipeline.
+
+**Acceptance criteria:**
+- [ ] "Export JSON" → single .json file with all selected extractions
+- [ ] "Export CSV" → flat table with columns = union of all fields across extractions
+- [ ] Both formats include confidence and timestamp metadata
+
+**Tested in:** BACKLOG US-638 to US-640 (Phase 1.5)
+
 ## 10. Feature Specifications
 
 ### Feature: Document Ingestion (FR-001)
