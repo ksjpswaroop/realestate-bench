@@ -274,10 +274,11 @@ pub fn list_extractions(
             sql.push_str(" AND e.schema_id = ?");
             binds.push(s.to_string());
         }
-        if search.is_some() {
+        if let Some(q) = search {
             sql.push_str(
                 " AND e.id IN (SELECT rowid FROM fts_extractions WHERE fts_extractions MATCH ?)",
             );
+            binds.push(q.to_string());
         }
         sql.push_str(" ORDER BY e.created_at DESC LIMIT ?");
         binds.push(limit.to_string());
@@ -291,28 +292,6 @@ pub fn list_extractions(
         let mut out = vec![];
         for row in rows {
             out.push(row?);
-        }
-        // We need to also bind the search term in a separate execution, since
-        // the original logic mixed SQL building with ToSql binding. Re-execute
-        // if search is present:
-        if let Some(q) = search {
-            let mut stmt = c.prepare(
-                "SELECT e.id, e.document_id, e.schema_id, e.schema_version, e.extraction_json,
-                        e.confidences_json, e.mean_confidence, e.latency_ms, e.model_version,
-                        e.created_at, e.deleted_at, d.path, d.file_name
-                 FROM extractions e
-                 JOIN documents d ON d.id = e.document_id
-                 WHERE e.deleted_at IS NULL
-                   AND e.schema_id LIKE ?1
-                   AND e.id IN (SELECT rowid FROM fts_extractions WHERE fts_extractions MATCH ?2)
-                 ORDER BY e.created_at DESC LIMIT ?3",
-            )?;
-            let schema = schema_filter.unwrap_or("%");
-            let mut rows = stmt.query_map(params![schema, q, limit], |r| Ok(map_extraction(r)))?;
-            out.clear();
-            for row in rows {
-                out.push(row?);
-            }
         }
         Ok(out)
     })

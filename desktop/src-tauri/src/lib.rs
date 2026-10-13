@@ -8,7 +8,7 @@
 //! See ARCHITECTURE §3 for the full design.
 
 mod commands;
-mod db;
+pub mod db;
 mod errors;
 mod extract;
 mod paths;
