@@ -1,0 +1,6 @@
+/opt/homebrew/lib/python3.14/site-packages/huggingface_hub/constants.py:298: FutureWarning: The `HF_HUB_ENABLE_HF_TRANSFER` environment variable is deprecated as 'hf_transfer' is not used anymore. Please use `HF_XET_HIGH_PERFORMANCE` instead to enable high performance transfer with Xet. Visit https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables#hfxethighperformance for more details.
+  warnings.warn(
+Error: Dataset 'S-Tenckhoff/LLMStructBench' not found.
+If the repo is private, make sure you are authenticated and your token has the required permissions.
+If the repo does not exist, create it with: hf repos create S-Tenckhoff/LLMStructBench --type dataset
+Hint: set HF_DEBUG=1 as environment variable for full traceback.

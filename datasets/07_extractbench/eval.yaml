@@ -1,0 +1,17 @@
+name: ExtractBench
+description: ExtractBench is a benchmark for schema-guided structured extraction from real-world enterprise documents.
+evaluation_framework: extractbench
+
+tasks:
+  - id: mean
+    config: extract-bench
+    split: mean
+  - id: short
+    config: extract-bench
+    split: short
+  - id: medium
+    config: extract-bench
+    split: medium
+  - id: long
+    config: extract-bench
+    split: long

@@ -1,0 +1,93 @@
+# RealEstate-Bench — git tracks docs + code + small dataset metadata only.
+# Big binaries (PDFs, images, parquet, jsonl) are downloaded via scripts/download_datasets.sh
+# and live outside git. This is intentional: 3.5 GB of real estate documents
+# doesn't belong in a git history.
+
+# Datasets are too big for git; download via ./scripts/download_datasets.sh
+
+# Embedded git clones (datasets/02_nuextract_github_repo)
+datasets/02_nuextract_github_repo/
+
+# All dataset binary + bulky content
+datasets/*/data/
+datasets/*/images/
+datasets/*/docs/
+datasets/*/corpus/
+datasets/*/eval/
+datasets/*/train/
+datasets/*/test/
+datasets/*/validation/
+datasets/*/benchmark_data/
+datasets/*/assets/
+datasets/*/thumbnails/
+datasets/*/*.jsonl
+datasets/*/test.json
+datasets/*/test_labels.json
+datasets/*/medium.jsonl
+datasets/*/long.jsonl
+datasets/*/short.jsonl
+datasets/*/*.parquet
+datasets/*/*.pdf
+datasets/*/*.png
+datasets/*/*.jpg
+datasets/*/*.jpeg
+datasets/*/*.tiff
+datasets/*/*.heic
+datasets/*/*.bmp
+datasets/*/*.zip
+datasets/*/*.tar.gz
+datasets/*/*.tar.bz2
+datasets/*/answ*/*.json
+datasets/*/invoice_*.pdf
+datasets/*/ground_truth.json
+# Allow dataset-level metadata to be committed
+!datasets/*/README.md
+!datasets/*/_logs/
+!datasets/*/dataset_infos.json
+!datasets/*/CITATION.cff
+!datasets/*/LICENSE
+!datasets/*/DATA_LICENSE
+!datasets/README.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.spec
+
+# Virtualenvs
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Local config
+.env
+.env.local
+*.local.yaml
+
+# Bench output
+bench/results/
+bench/baseline.json
+bench/golden/
+
+# Model weights (downloaded on first run)
+models/
+*.safetensors
+*.gguf
+*.bin
