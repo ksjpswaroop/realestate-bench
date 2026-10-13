@@ -1,0 +1,22 @@
+RealEstate-Bench
+Copyright 2026 ksjswaroop
+
+This product includes third-party dataset metadata, READMEs, and LICENSE files
+in datasets/ — each is the property of its respective authors and is governed
+by its own license terms (see per-dataset LICENSE / DATA_LICENSE files):
+
+  - datasets/01_invoice_extract_benchmark/  — Drew ipp / drew-ipp
+  - datasets/03_invoice_extraction_v2/      — manuelaschrittwieser
+  - datasets/04_sroie/                      — jsdnrs / ICDAR 2019
+  - datasets/05_cord/                       — naver-clova-ix
+  - datasets/06_funsd/                      — nielsr / FUNSD
+  - datasets/07_extractbench/               — llamaindex
+
+The NuExtract GitHub repository at datasets/02_nuextract_github_repo/ is a
+git-cloned mirror of the numindai/nuextract repository; it is NOT under
+Apache-2.0 — see the repository's own LICENSE terms.
+
+RealEstate-Bench code (the Python package, CLI, schemas, validators,
+bench/ harness) is licensed under the Apache License, Version 2.0 (LICENSE).
+Documentation (PRD, ARCHITECTURE, BACKLOG, ROADMAP, DESIGN_SYSTEM, WIREFRAMES,
+PROMPT_TEMPLATES, README) is licensed under CC-BY-4.0 unless otherwise noted.
