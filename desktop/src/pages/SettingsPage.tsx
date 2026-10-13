@@ -57,7 +57,7 @@ export default function SettingsPage() {
       <section style={section}>
         <h2 style={h2}>About</h2>
         <p>RealEstate-Bench v0.1.0 — local document-AI extraction.</p>
-        <p>Built with Tauri 2, React, Rust, and cactus-needle.</p>
+        <p>© 2026 Swaroop Kallakuri. All rights reserved.</p>
       </section>
     </div>
   );
